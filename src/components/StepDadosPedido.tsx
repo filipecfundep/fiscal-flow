@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useFiscal } from '@/contexts/FiscalContext';
 import { enviarSolicitacao } from '@/services/api';
+import { v4 as uuidv4 } from 'uuid';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,34 +9,40 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Loader2, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
-import type { SolicitacaoBody } from '@/types/fiscal';
+import type { SolicitacaoBody, TipoProcessoFiscal, IdentificadorOrigem, TipoDocumentoFiscal } from '@/types/fiscal';
+import '@/components/styles/no-spinner.css';
 
 export function StepDadosPedido() {
-  const { xmlData, updateStepStatus, setCurrentStep, setSolicitacaoId } = useFiscal();
+  const { xmlData, updateStepStatus, setCurrentStep, setSolicitacaoId, resetAll } = useFiscal();
   const [loading, setLoading] = useState(false);
   const [showDivergencia, setShowDivergencia] = useState(false);
   const [showEnviado, setShowEnviado] = useState(false);
-  const [showSucesso, setShowSucesso] = useState(false);
   const [showErro, setShowErro] = useState(false);
+  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
   const [erros, setErros] = useState<string[]>([]);
   const [divergencias, setDivergencias] = useState<string[]>([]);
 
+  const idMocadaPessoa = uuidv4();
+  const idMocadaEmissor = uuidv4();
+  const idMocadaContaBancaria = uuidv4();
+  const numeroPedidoMocado = Math.floor(Math.random() * 1000000);
+
   const [form, setForm] = useState({
-    origem: 'Pedidos',
-    tipoProcesso: 'PagamentoNotaFiscal',
+    origem: 1 as IdentificadorOrigem,
+    tipoProcesso: 0 as TipoProcessoFiscal,
     valorTotal: xmlData?.valorTotal || 0,
-    codigoPessoa: '',
-    idContaBancaria: '',
+    codigoPessoa: idMocadaPessoa,
+    idContaBancaria: idMocadaContaBancaria,
     cpfBeneficiario: '',
-    codigoEmissor: '',
+    codigoEmissor: idMocadaEmissor,
     cnpjEmissor: xmlData?.cnpjCpfEmitente || '',
-    codigoCnaeEmissor: xmlData?.codigoCNAE || '',
+    codigoCnaeEmissor: '',
     codigoProjeto: '',
     subProjeto: 0,
     rubrica: '',
     contaRazao: '',
     centroDeCusto: '',
-    numeroPedido: 0,
+    numeroPedido: numeroPedidoMocado,
     justificativa: '',
   });
 
@@ -75,7 +82,7 @@ export function StepDadosPedido() {
       const body: SolicitacaoBody = {
         ...form,
         documentosFiscais: [{
-          tipoDocumento: 'NotaFiscal',
+          tipoDocumento: 0 as TipoDocumentoFiscal,
           idDocumentoFiscalExterno: xmlData?.id || '',
           chaveAcessoNf: xmlData?.chaveAcesso || '',
           dataEmissao: xmlData?.dataEmissao || '',
@@ -89,15 +96,17 @@ export function StepDadosPedido() {
       if (response.success) {
         setSolicitacaoId(response.data.id);
         updateStepStatus(2, 'APROVADO');
-        setShowSucesso(true);
+        updateStepStatus(3, 'PENDENTE');
+        setCurrentStep(3);
       } else {
         setErros(response.errors || [response.message]);
-        updateStepStatus(1, 'RECUSADO', response.errors?.join(', ') || response.message);
+        updateStepStatus(2, 'RECUSADO', response.errors?.join(', ') || response.message);
         setShowErro(true);
       }
     } catch (err) {
       setShowEnviado(false);
-      setErros(['Erro de conexão com o servidor']);
+      const errorMessage = err instanceof Error ? err.message : 'Erro de conexão com o servidor';
+      setErros([errorMessage]);
       setShowErro(true);
     } finally {
       setLoading(false);
@@ -112,6 +121,15 @@ export function StepDadosPedido() {
     }, 2000);
   };
 
+  const handleSolicitarCancelamento = () => {
+    setShowConfirmCancel(true);
+  };
+
+  const handleConfirmarCancelamento = () => {
+    setShowConfirmCancel(false);
+    resetAll();
+  };
+
   return (
     <>
       <Card className="shadow-md border-none">
@@ -124,14 +142,6 @@ export function StepDadosPedido() {
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Beneficiário</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="codigoPessoa">Código Pessoa</Label>
-                <Input id="codigoPessoa" value={form.codigoPessoa} onChange={e => update('codigoPessoa', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="idContaBancaria">ID Conta Bancária</Label>
-                <Input id="idContaBancaria" value={form.idContaBancaria} onChange={e => update('idContaBancaria', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
                 <Label htmlFor="cpfBeneficiario">CPF Beneficiário</Label>
                 <Input id="cpfBeneficiario" value={form.cpfBeneficiario} onChange={e => update('cpfBeneficiario', e.target.value)} />
               </div>
@@ -142,10 +152,6 @@ export function StepDadosPedido() {
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Emissor</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="codigoEmissor">Código Emissor</Label>
-                <Input id="codigoEmissor" value={form.codigoEmissor} onChange={e => update('codigoEmissor', e.target.value)} />
-              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cnpjEmissor">CNPJ Emissor</Label>
                 <Input id="cnpjEmissor" value={form.cnpjEmissor} onChange={e => update('cnpjEmissor', e.target.value)} />
@@ -167,7 +173,7 @@ export function StepDadosPedido() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="subProjeto">Sub Projeto</Label>
-                <Input id="subProjeto" type="number" value={form.subProjeto} onChange={e => update('subProjeto', Number(e.target.value))} />
+                <Input className="no-spinner" id="subProjeto" type="number" value={form.subProjeto} onChange={e => update('subProjeto', Number(e.target.value))} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="rubrica">Rubrica</Label>
@@ -190,11 +196,7 @@ export function StepDadosPedido() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="valorTotal">Valor Total</Label>
-                <Input id="valorTotal" type="number" step="0.01" value={form.valorTotal} onChange={e => update('valorTotal', Number(e.target.value))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="numeroPedido">Número Pedido</Label>
-                <Input id="numeroPedido" type="number" value={form.numeroPedido} onChange={e => update('numeroPedido', Number(e.target.value))} />
+                <Input className="no-spinner" id="valorTotal" type="number" step="0.01" value={form.valorTotal} onChange={e => update('valorTotal', Number(e.target.value))} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -204,7 +206,7 @@ export function StepDadosPedido() {
           </div>
         </CardContent>
         <CardFooter className="flex justify-between border-t pt-4">
-          <Button variant="outline" onClick={() => setCurrentStep(1)}>Cancelar</Button>
+          <Button variant="destructive" onClick={handleSolicitarCancelamento}>Cancelar Solicitação</Button>
           <Button onClick={handleValidar} disabled={loading}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Validar Pedido
@@ -254,24 +256,6 @@ export function StepDadosPedido() {
       </Dialog>
 
       {/* Modal Sucesso */}
-      <Dialog open={showSucesso} onOpenChange={setShowSucesso}>
-        <DialogContent className="text-center sm:max-w-md">
-          <div className="flex flex-col items-center gap-4 py-6">
-            <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
-              <CheckCircle2 className="w-10 h-10 text-success" />
-            </div>
-            <p className="text-xl font-semibold">Validação Concluída</p>
-            <p className="text-sm text-muted-foreground">Pedido enviado com sucesso!</p>
-          </div>
-          <DialogFooter>
-            <Button className="w-full" onClick={() => { setShowSucesso(false); updateStepStatus(3, 'PENDENTE'); setCurrentStep(3); }}>
-              Conferir Resultado da Solicitação
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Erro */}
       <Dialog open={showErro} onOpenChange={setShowErro}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -286,8 +270,31 @@ export function StepDadosPedido() {
             ))}
           </ul>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowErro(false); setCurrentStep(1); }}>
-              Voltar aos Dados XML
+            <Button variant="outline" onClick={() => setShowErro(false)}>
+              Voltar aos dados do Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Confirmar Cancelamento */}
+      <Dialog open={showConfirmCancel} onOpenChange={setShowConfirmCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Cancelar Solicitação
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja cancelar a solicitação? Todos os dados preenchidos serão perdidos.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowConfirmCancel(false)}>
+              Não, Continuar
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmarCancelamento}>
+              Sim, Cancelar Solicitação
             </Button>
           </DialogFooter>
         </DialogContent>

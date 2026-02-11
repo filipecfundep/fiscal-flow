@@ -12,14 +12,14 @@ export function Stepper() {
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
-                  i === currentStep
-                    ? 'bg-primary text-primary-foreground shadow-lg ring-4 ring-primary/20'
-                    : step.status === 'APROVADO'
+                  step.status === 'APROVADO'
                     ? 'bg-success text-success-foreground'
                     : step.status === 'RECUSADO'
                     ? 'bg-destructive text-destructive-foreground'
+                    : i === currentStep
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground'
-                }`}
+                } ${i === currentStep ? 'shadow-lg ring-4 ring-primary/20' : ''}`}
               >
                 {step.status === 'APROVADO' ? (
                   <CheckCircle2 className="w-5 h-5" />

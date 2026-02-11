@@ -19,7 +19,8 @@ const defaultSteps: StepInfo[] = [
   { label: 'Inserir XML', status: 'PENDENTE' },
   { label: 'Dados XML', status: 'PENDENTE' },
   { label: 'Dados Pedido', status: 'PENDENTE' },
-  { label: 'Resultado', status: 'PENDENTE' },
+  { label: 'Resultado Solicitacao', status: 'PENDENTE' },
+  { label: 'Resultado Final', status: 'PENDENTE' },
 ];
 
 const FiscalContext = createContext<FiscalContextType | undefined>(undefined);

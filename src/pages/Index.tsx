@@ -4,6 +4,7 @@ import { StepStatusCard } from '@/components/StepStatusCard';
 import { StepUploadXml } from '@/components/StepUploadXml';
 import { StepXmlResults } from '@/components/StepXmlResults';
 import { StepDadosPedido } from '@/components/StepDadosPedido';
+import { StepSolicitacao } from '@/components/StepSolicitacao';
 import { StepResultado } from '@/components/StepResultado';
 import { FileText } from 'lucide-react';
 
@@ -31,7 +32,8 @@ function FiscalContent() {
         {currentStep === 0 && <StepUploadXml />}
         {currentStep === 1 && <StepXmlResults />}
         {currentStep === 2 && <StepDadosPedido />}
-        {currentStep === 3 && <StepResultado />}
+        {currentStep === 3 && <StepSolicitacao />}
+        {currentStep === 4 && <StepResultado />}
       </main>
     </div>
   );

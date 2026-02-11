@@ -1,3 +1,5 @@
+import { UUID } from "crypto";
+
 //    ###   DTOs API GESTAO DOCUMENTO FISCAL  ### 
 export interface XmlProcessResponse {
   success: boolean;
@@ -32,7 +34,7 @@ export interface TributosMunicipais {
 }
 
 export interface XmlData {
-  id: string; // format: uuid
+  id: UUID; // format: uuid
   nomeArquivo: string | null;
   hash: string | null;
   tipoNota: string; // Ref: TipoNotaFiscal enum
@@ -92,30 +94,88 @@ export interface XmlData {
 }
 
 // ###   DTOs API FISCAL   ###
+
+export type IdentificadorOrigem = 1 | 2 | 3 | 4 | 5; // Pedidos | Compras | Pessoal | Importacao | Contratos
+export const IdentificadorOrigemMap: Record<IdentificadorOrigem, string> = {
+  1: 'Pedidos',
+  2: 'Compras',
+  3: 'Pessoal',
+  4: 'Importacao',
+  5: 'Contratos'
+};
+
+export type TipoProcessoFiscal = 0 | 1 | 2 | 3; // PagamentoNotaFiscal | Reembolso | AcertoAdiantamento | Diarias
+export const TipoProcessoFiscalMap: Record<TipoProcessoFiscal, string> = {
+  0: 'PagamentoNotaFiscal',
+  1: 'Reembolso',
+  2: 'AcertoAdiantamento',
+  3: 'Diarias'
+};
+
+export type TipoDocumentoFiscal = 0 | 1 | 2 | 3 | 4; // NotaFiscal | NotaFiscalServico | NotaFiscalEletronica | CupomFiscal | Recibo
+export const TipoDocumentoFiscalMap: Record<TipoDocumentoFiscal, string> = {
+  0: 'NotaFiscal',
+  1: 'NotaFiscalServico',
+  2: 'NotaFiscalEletronica',
+  3: 'CupomFiscal',
+  4: 'Recibo'
+};
+
+export type StatusSolicitacaoProcessoFiscal = 0 | 1 | 2 | 3; // Criado | Validado | Erro | Concluido
+export const StatusSolicitacaoProcessoFiscalMap: Record<StatusSolicitacaoProcessoFiscal, string> = {
+  0: 'Criado',
+  1: 'Validado',
+  2: 'Erro',
+  3: 'Concluido'
+};
+
+// Reverse mapping - para converter string em número
+export function stringToStatusNumber(status: string): StatusSolicitacaoProcessoFiscal {
+  const statusMap: Record<string, StatusSolicitacaoProcessoFiscal> = {
+    'Criado': 0,
+    'Validado': 1,
+    'Erro': 2,
+    'Concluido': 3
+  };
+  return statusMap[status] || 0;
+}
+
+// Helper function para determinar se o status é sucesso
+export function isStatusSuccess(status: StatusSolicitacaoProcessoFiscal | string): boolean {
+  const numStatus = typeof status === 'string' ? stringToStatusNumber(status) : status;
+  return numStatus === 1 || numStatus === 3; // Validado (1) ou Concluido (3)
+}
+
+// Helper function para determinar se o status é erro
+export function isStatusError(status: StatusSolicitacaoProcessoFiscal | string): boolean {
+  const numStatus = typeof status === 'string' ? stringToStatusNumber(status) : status;
+  return numStatus === 2; // Erro (2)
+}
+
 export interface SolicitacaoBody {
-  origem: string;
-  tipoProcesso: string;
+  origem: IdentificadorOrigem;
+  tipoProcesso: TipoProcessoFiscal;
   valorTotal: number;
   codigoPessoa: string;
   idContaBancaria: string;
-  cpfBeneficiario: string;
+  cpfBeneficiario: string | null;
   codigoEmissor: string;
-  cnpjEmissor: string;
-  codigoCnaeEmissor: string;
-  codigoProjeto: string;
+  cnpjEmissor: string | null;
+  codigoCnaeEmissor: string | null;
+  codigoProjeto: string | null;
   subProjeto: number;
-  rubrica: string;
-  contaRazao: string;
-  centroDeCusto: string;
-  numeroPedido: number;
-  justificativa: string;
+  rubrica: string | null;
+  contaRazao: string | null;
+  centroDeCusto: string | null;
+  numeroPedido: number | string;
+  justificativa: string | null;
   documentosFiscais: DocumentoFiscal[];
 }
 
 export interface DocumentoFiscal {
-  tipoDocumento: string;
+  tipoDocumento: TipoDocumentoFiscal;
   idDocumentoFiscalExterno: string;
-  chaveAcessoNf: string;
+  chaveAcessoNf: string | null;
   dataEmissao: string;
 }
 
@@ -123,8 +183,8 @@ export interface SolicitacaoResponse {
   success: boolean;
   data: {
     id: number;
-    tipoProcesso: string;
-    origem: string;
+    tipoProcesso: TipoProcessoFiscal;
+    origem: IdentificadorOrigem;
     valorTotal: number;
     numeroPedido: number;
   };
@@ -143,30 +203,30 @@ export interface SolicitacaoDetailResponse {
     dataCriacao: string;
     valorTotal: number;
     numeroPedido: number;
-    justificativa: string;
-    erros: string;
+    justificativa: string | null;
+    erros: string | null;
     beneficiario: {
       codigoPessoa: string;
       idContaBancaria: string;
-      cpfBeneficiario: string;
+      cpfBeneficiario: string | null;
     };
     emissor: {
       codigoEmissor: string;
-      cnpjEmissor: string;
-      codigoCnaeEmissor: string;
+      cnpjEmissor: string | null;
+      codigoCnaeEmissor: string | null;
     };
     dadosContabeis: {
-      codigoProjeto: string;
+      codigoProjeto: string | null;
       subProjeto: number;
-      rubrica: string;
-      contaRazao: string;
-      centroDeCusto: string;
+      rubrica: string | null;
+      contaRazao: string | null;
+      centroDeCusto: string | null;
     };
     documentosFiscais: {
       id: number;
       tipoDocumento: string;
       idDocumentoFiscalExterno: string;
-      chaveAcessoNf: string;
+      chaveAcessoNf: string | null;
       dataEmissao: string;
     }[];
   };

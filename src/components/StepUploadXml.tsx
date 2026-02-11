@@ -42,7 +42,8 @@ export function StepUploadXml() {
         toast({ title: 'Erro', description: response.message || 'Falha ao processar XML', variant: 'destructive' });
       }
     } catch (err) {
-      toast({ title: 'Erro de conexão', description: 'Não foi possível conectar ao servidor.', variant: 'destructive' });
+      const errorMessage = err instanceof Error ? err.message : 'Não foi possível conectar ao servidor.';
+      toast({ title: 'Erro', description: errorMessage, variant: 'destructive' });
     } finally {
       setLoading(false);
     }

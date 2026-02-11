@@ -13,7 +13,16 @@ export async function processarXml(file: File): Promise<XmlProcessResponse> {
   });
 
   if (!response.ok) {
-    throw new Error(`Erro ao processar XML: ${response.statusText}`);
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData?.message || errorData?.error || errorData?.errors?.[0] || response.statusText;
+      throw new Error(errorMessage);
+    } catch (e) {
+      if (e instanceof Error && e.message !== response.statusText) {
+        throw e;
+      }
+      throw new Error(`Erro ao processar XML: ${response.statusText}`);
+    }
   }
 
   return response.json();
@@ -27,7 +36,16 @@ export async function enviarSolicitacao(body: SolicitacaoBody): Promise<Solicita
   });
 
   if (!response.ok) {
-    throw new Error(`Erro ao enviar solicitação: ${response.statusText}`);
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData?.message || errorData?.error || errorData?.errors?.[0] || response.statusText;
+      throw new Error(errorMessage);
+    } catch (e) {
+      if (e instanceof Error && e.message !== response.statusText) {
+        throw e;
+      }
+      throw new Error(`Erro ao enviar solicitação: ${response.statusText}`);
+    }
   }
 
   return response.json();
@@ -39,7 +57,16 @@ export async function consultarSolicitacao(id: number): Promise<SolicitacaoDetai
   });
 
   if (!response.ok) {
-    throw new Error(`Erro ao consultar solicitação: ${response.statusText}`);
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData?.message || errorData?.error || errorData?.errors?.[0] || response.statusText;
+      throw new Error(errorMessage);
+    } catch (e) {
+      if (e instanceof Error && e.message !== response.statusText) {
+        throw e;
+      }
+      throw new Error(`Erro ao consultar solicitação: ${response.statusText}`);
+    }
   }
 
   return response.json();
