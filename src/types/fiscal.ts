@@ -1,3 +1,4 @@
+//    ###   DTOs API GESTAO DOCUMENTO FISCAL  ### 
 export interface XmlProcessResponse {
   success: boolean;
   data: XmlData;
@@ -6,59 +7,91 @@ export interface XmlProcessResponse {
   timestamp: string;
 }
 
-export interface XmlData {
-  id: string;
-  nomeArquivo: string;
-  hash: string;
-  tipoNota: string;
-  chaveAcesso: string;
-  numero: number;
-  serie: number;
-  modelo: string;
-  dataEmissao: string;
-  cnpjCpfEmitente: string;
-  nomeEmitente: string;
-  nomeFantasiaEmitente: string;
-  inscricaoEstadualEmitente: string;
-  ufEmitente: string;
-  municipioEmitente: string;
-  cnpjCpfDestinatario: string;
-  nomeDestinatario: string;
-  inscricaoEstadualDestinatario: string;
-  ufDestinatario: string;
-  municipioDestinatario: string;
-  valorTotal: number;
-  valorProdutos: number;
-  valorServicos: number;
-  baseCalculoICMS: number;
-  valorICMS: number;
-  baseCalculoICMSST: number;
-  valorICMSST: number;
+export interface TributosFederais {
   valorIPI: number;
   valorPIS: number;
   valorCOFINS: number;
-  valorII: number;
-  valorISS: number;
-  status: string;
-  statusDescricao: string;
-  tipoEmissao: string;
-  quantidadeItens: number;
-  informacoesFisco: string;
-  finalidadeEmissao: string;
-  tipoOperacao: string;
-  naturezaOperacao: string;
-  dataCompetencia: string;
-  itemListaServicos: string;
-  codigoCNAE: string;
-  discriminacaoServico: string;
-  codigoServicoMunicipio: string;
-  municipioIncidencia: string;
-  valorDeducoes: number;
-  aliquotaISS: number;
-  valorLiquido: number;
-  retencaoFederal: boolean;
+  valorINSS: number;
+  valorIR: number;
+  valorCSLL: number;
+  total: number;
+  totalRetencoes: number;
 }
 
+export interface TributosEstaduais {
+  valorICMS: number;
+  baseCalculoICMS: number | null;
+  baseCalculoICMSST: number | null;
+  valorICMSST: number;
+  total: number;
+}
+
+export interface TributosMunicipais {
+  valorISS: number;
+  total: number;
+}
+
+export interface XmlData {
+  id: string; // format: uuid
+  nomeArquivo: string | null;
+  hash: string | null;
+  tipoNota: string; // Ref: TipoNotaFiscal enum
+  chaveAcesso: string | null;
+  numero: number;
+  serie: number;
+  modelo: string | null;
+  dataEmissao: string; // format: date-time
+  cnpjCpfEmitente: string | null;
+  nomeEmitente: string | null;
+  nomeFantasiaEmitente: string | null;
+  inscricaoEstadualEmitente: string | null;
+  ufEmitente: string | null;
+  municipioEmitente: string | null;
+  cnpjCpfDestinatario: string | null;
+  nomeDestinatario: string | null;
+  inscricaoEstadualDestinatario: string | null;
+  ufDestinatario: string | null;
+  municipioDestinatario: string | null;
+  valorTotal: number;
+  valorProdutos: number | null;
+  valorServicos: number | null;
+  
+  // Agrupamentos de tributos conforme o Swagger
+  tributosFederais: TributosFederais;
+  tributosEstaduais: TributosEstaduais;
+  tributosMunicipais: TributosMunicipais;
+
+  status: string; // Ref: StatusNota enum
+  statusDescricao: string | null;
+  tipoEmissao: string; // Ref: TipoEmissao enum
+  quantidadeItens: number;
+  informacoesFisco: string | null;
+  finalidadeEmissao: string | null;
+  tipoOperacao: string | null;
+  naturezaOperacao: string | null;
+  dataCompetencia: string | null;
+  itemListaServicos: string | null;
+  codigoCNAE: string | null;
+  discriminacaoServico: string | null;
+  codigoServicoMunicipio: string | null;
+  municipioIncidencia: string | null;
+  
+  // Propriedades adicionais do schema original
+  codigoNBS?: string | null;
+  descricaoNBS?: string | null;
+  descricaoTributacaoNacional?: string | null;
+  descricaoTributacaoMunicipal?: string | null;
+  opcaoSimplesNacional?: string | null;
+  regimeApuracaoSimplesNacional?: string | null;
+  
+  valorDeducoes: number | null;
+  aliquotaISS: number | null;
+  valorLiquido: number | null;
+  retencaoFederal: boolean | null;
+  documentoValidado: boolean;
+}
+
+// ###   DTOs API FISCAL   ###
 export interface SolicitacaoBody {
   origem: string;
   tipoProcesso: string;

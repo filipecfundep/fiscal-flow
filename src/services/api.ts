@@ -1,11 +1,11 @@
 import type { XmlProcessResponse, SolicitacaoBody, SolicitacaoResponse, SolicitacaoDetailResponse } from '@/types/fiscal';
 
-const API_FISCAL = "localhost:5100/api"
-const API_DOCS_FISCAIS = "localhost:5001/api"
+const API_FISCAL = "http://localhost:5100/api"
+const API_DOCS_FISCAIS = "http://localhost:5001/api"
 
 export async function processarXml(file: File): Promise<XmlProcessResponse> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('arquivo', file);
 
   const response = await fetch(`${API_DOCS_FISCAIS}/NotasFiscais/processar-xml`, {
     method: 'POST',

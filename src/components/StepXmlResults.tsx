@@ -113,18 +113,21 @@ export function StepXmlResults() {
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <DataRow label="Valor Total" value={formatCurrency(xmlData.valorTotal)} />
-                <DataRow label="Valor Produtos" value={formatCurrency(xmlData.valorProdutos)} />
-                <DataRow label="Valor Serviços" value={formatCurrency(xmlData.valorServicos)} />
-                <DataRow label="Base ICMS" value={formatCurrency(xmlData.baseCalculoICMS)} />
-                <DataRow label="Valor ICMS" value={formatCurrency(xmlData.valorICMS)} />
-                <DataRow label="Valor ICMS ST" value={formatCurrency(xmlData.valorICMSST)} />
-                <DataRow label="Valor IPI" value={formatCurrency(xmlData.valorIPI)} />
-                <DataRow label="Valor PIS" value={formatCurrency(xmlData.valorPIS)} />
-                <DataRow label="Valor COFINS" value={formatCurrency(xmlData.valorCOFINS)} />
-                <DataRow label="Valor ISS" value={formatCurrency(xmlData.valorISS)} />
-                <DataRow label="Valor Líquido" value={formatCurrency(xmlData.valorLiquido)} />
-              </AccordionContent>
+               <DataRow label="Valor Total" value={formatCurrency(xmlData.valorTotal)} />
+               <DataRow label="Valor Produtos" value={formatCurrency(xmlData.valorProdutos || 0)} />
+               <DataRow label="Valor Serviços" value={formatCurrency(xmlData.valorServicos || 0)} />
+               
+               {/* Ajuste nos caminhos dos tributos conforme a nova estrutura */}
+               <DataRow label="Base ICMS" value={formatCurrency(xmlData.tributosEstaduais?.baseCalculoICMS || 0)} />
+               <DataRow label="Valor ICMS" value={formatCurrency(xmlData.tributosEstaduais?.valorICMS || 0)} />
+               <DataRow label="Valor ICMS ST" value={formatCurrency(xmlData.tributosEstaduais?.valorICMSST || 0)} />
+               <DataRow label="Valor IPI" value={formatCurrency(xmlData.tributosFederais?.valorIPI || 0)} />
+               <DataRow label="Valor PIS" value={formatCurrency(xmlData.tributosFederais?.valorPIS || 0)} />
+               <DataRow label="Valor COFINS" value={formatCurrency(xmlData.tributosFederais?.valorCOFINS || 0)} />
+               <DataRow label="Valor ISS" value={formatCurrency(xmlData.tributosMunicipais?.valorISS || 0)} />
+               
+               <DataRow label="Valor Líquido" value={formatCurrency(xmlData.valorLiquido || 0)} />
+             </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="geral" className="border rounded-lg px-3">
