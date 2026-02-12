@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useFiscal } from '@/contexts/FiscalContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { FileText, ArrowRight, Building2, User, DollarSign, Info } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { FileText, ArrowRight, Building2, User, DollarSign, Info, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 function DataRow({ label, value }: { label: string; value: string | number | boolean | undefined }) {
   if (value === undefined || value === null || value === '') return null;
@@ -27,7 +29,8 @@ function formatDate(val: string) {
 }
 
 export function StepXmlResults() {
-  const { xmlData, fileName, setCurrentStep, steps, updateStepStatus } = useFiscal();
+  const { xmlData, fileName, setCurrentStep, steps, updateStepStatus, resetAll } = useFiscal();
+  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
 
   if (!xmlData) return null;
 
@@ -39,15 +42,24 @@ export function StepXmlResults() {
     setCurrentStep(2);
   };
 
+  const handleSolicitarCancelamento = () => {
+    setShowConfirmCancel(true);
+  };
+
+  const handleConfirmarCancelamento = () => {
+    setShowConfirmCancel(false);
+    resetAll();
+  };
+
   return (
     <div className="space-y-4">
-      <Card className="shadow-md border-none">
+      {/* <Card className="shadow-md border-none">
         <CardContent className="flex items-center gap-3 py-4">
           <FileText className="w-6 h-6 text-primary" />
           <div>
             <p className="font-medium">{fileName}</p>
             <p className="text-sm text-muted-foreground">
-              {xmlData.tipoNota} • Chave: {xmlData.chaveAcesso?.slice(0, 20)}...
+              {xmlData.tipoNota} • Chave de Acesso: {xmlData.chaveAcesso}
             </p>
           </div>
           {steps[1].status !== 'PENDENTE' && (
@@ -58,7 +70,7 @@ export function StepXmlResults() {
             </Badge>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
 
       {isRecusado && steps[1].motivo && (
         <Card className="border-destructive/30 bg-destructive/5">
@@ -68,6 +80,36 @@ export function StepXmlResults() {
           </CardContent>
         </Card>
       )}
+
+
+      <Card className={`shadow-md border-none border-l-4 ${
+        xmlData.documentoValidado ? 'border-l-success bg-success/5' : 'border-l-destructive bg-destructive/5'
+      }`}>
+        <CardContent className="flex items-center gap-3 py-4">
+          {xmlData.documentoValidado ? (
+            <CheckCircle2 className="w-8 h-8 text-success" />
+          ) : (
+            <XCircle className="w-8 h-8 text-destructive" />
+          )}
+          <div>
+            <p className="font-semibold text-base">
+              Validação na SEFAZ
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {xmlData.documentoValidado 
+                ? 'Documento validado com sucesso' 
+                : 'Documento não válido ou cancelado'}
+            </p>
+          </div>
+          <Badge className={`ml-auto ${
+            xmlData.documentoValidado 
+              ? 'bg-success text-success-foreground' 
+              : 'bg-destructive text-destructive-foreground'
+          }`}>
+            {xmlData.documentoValidado ? 'Validado' : 'Não Validado'}
+          </Badge>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-md border-none">
         <CardHeader className="pb-2">
@@ -144,7 +186,7 @@ export function StepXmlResults() {
                 <DataRow label="Natureza da Operação" value={xmlData.naturezaOperacao} />
                 <DataRow label="Tipo Emissão" value={xmlData.tipoEmissao} />
                 <DataRow label="Finalidade" value={xmlData.finalidadeEmissao} />
-                <DataRow label="Qtd. Itens" value={xmlData.quantidadeItens} />
+                <DataRow label="Qtd. Itens" value={xmlData.modelo != "99" ? xmlData.quantidadeItens : "Não se aplica"} />
                 <DataRow label="Status" value={xmlData.statusDescricao} />
                 <DataRow label="Retenção Federal" value={xmlData.retencaoFederal} />
               </AccordionContent>
@@ -154,15 +196,38 @@ export function StepXmlResults() {
       </Card>
 
       {!isApproved && !isRecusado && (
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => { updateStepStatus(0, 'PENDENTE'); useFiscal; }}>
-            Voltar
+        <div className="flex justify-between gap-3">
+          <Button variant="destructive" onClick={handleSolicitarCancelamento}>
+            Cancelar Solicitação
           </Button>
           <Button onClick={handleApprove} className="gap-2">
             Aprovar e Continuar <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       )}
+
+      {/* Modal Confirmar Cancelamento */}
+      <Dialog open={showConfirmCancel} onOpenChange={setShowConfirmCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Cancelar Solicitação
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja cancelar a solicitação? Todos os dados preenchidos serão perdidos.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowConfirmCancel(false)}>
+              Não, Continuar
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmarCancelamento}>
+              Sim, Cancelar Solicitação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

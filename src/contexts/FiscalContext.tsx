@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, type ReactNode } from 'react';
-import type { XmlData, StepInfo, StepStatus } from '@/types/fiscal';
+import type { XmlData, StepInfo, StepStatus, SolicitacaoBody } from '@/types/fiscal';
 
 interface FiscalContextType {
   currentStep: number;
@@ -12,6 +12,8 @@ interface FiscalContextType {
   setFileName: (name: string) => void;
   solicitacaoId: number | null;
   setSolicitacaoId: (id: number | null) => void;
+  formData: Partial<SolicitacaoBody> | null;
+  setFormData: (data: Partial<SolicitacaoBody> | null) => void;
   resetAll: () => void;
 }
 
@@ -31,6 +33,7 @@ export function FiscalProvider({ children }: { children: ReactNode }) {
   const [xmlData, setXmlData] = useState<XmlData | null>(null);
   const [fileName, setFileName] = useState('');
   const [solicitacaoId, setSolicitacaoId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<Partial<SolicitacaoBody> | null>(null);
 
   const updateStepStatus = (stepIndex: number, status: StepStatus, motivo?: string) => {
     setSteps(prev => prev.map((s, i) => i === stepIndex ? { ...s, status, motivo } : s));
@@ -42,6 +45,7 @@ export function FiscalProvider({ children }: { children: ReactNode }) {
     setXmlData(null);
     setFileName('');
     setSolicitacaoId(null);
+    setFormData(null);
   };
 
   return (
@@ -51,6 +55,7 @@ export function FiscalProvider({ children }: { children: ReactNode }) {
       xmlData, setXmlData,
       fileName, setFileName,
       solicitacaoId, setSolicitacaoId,
+      formData, setFormData,
       resetAll,
     }}>
       {children}

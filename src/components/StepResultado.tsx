@@ -1,38 +1,27 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFiscal } from '@/contexts/FiscalContext';
-import { consultarSolicitacao } from '@/services/api';
+import { consultarSolicitacao, consultarProcessoFiscal } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, Loader2, RefreshCw, ArrowLeft, AlertCircle } from 'lucide-react';
-import type { SolicitacaoDetailResponse } from '@/types/fiscal';
+import { CheckCircle2, XCircle, Loader2, RefreshCw, ArrowLeft, AlertCircle, Pencil } from 'lucide-react';
+import type { SolicitacaoDetailResponse, ConsultarProcessoFiscalResponse } from '@/types/fiscal';
 import { isStatusSuccess, isStatusError } from '@/types/fiscal';
 
 export function StepResultado() {
-  const { solicitacaoId, updateStepStatus, resetAll } = useFiscal();
+  const { solicitacaoId, updateStepStatus, resetAll, setCurrentStep } = useFiscal();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SolicitacaoDetailResponse | null>(null);
   const [error, setError] = useState('');
-  const pollAttempts = useRef(0);
-  const pollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [processoFiscal, setProcessoFiscal] = useState<ConsultarProcessoFiscalResponse | null>(null);
+  const [loadingProcesso, setLoadingProcesso] = useState(false);
 
-  const clearPoll = () => {
-    if (pollTimeout.current) {
-      clearTimeout(pollTimeout.current);
-      pollTimeout.current = null;
-    }
-  };
-
-  const consultar = useCallback(async (isPolling = false) => {
+  const consultar = useCallback(async () => {
     if (!solicitacaoId) return;
-    
-    // Reseta tentativas quando é chamada manualmente (não é polling)
-    if (!isPolling) {
-      pollAttempts.current = 0;
-    }
     
     setLoading(true);
     setError('');
+    setProcessoFiscal(null);
     try {
       const data = await consultarSolicitacao(solicitacaoId);
       setResult(data);
@@ -44,48 +33,51 @@ export function StepResultado() {
       // Se sucesso final (validado ou concluído), marca como aprovado
       if (data.success && statusSuccess && !hasApiErrors) {
         updateStepStatus(4, 'APROVADO');
-        clearPoll();
+        
+        // Consulta o processo fiscal quando a solicitação for bem-sucedida
+        if (data.data?.id) {
+          setLoadingProcesso(true);
+          try {
+            const processoData = await consultarProcessoFiscal(data.data.id);
+            console.log('Processo Fiscal retornado:', processoData);
+            console.log('ID do Processo Fiscal:', processoData?.data?.id);
+            setProcessoFiscal(processoData);
+          } catch (processoErr) {
+            console.error('Erro ao consultar processo fiscal:', processoErr);
+          } finally {
+            setLoadingProcesso(false);
+          }
+        }
       } 
       // Se erro explícito ou falha na API, marca como recusado
       else if (!data.success || statusError || hasApiErrors) {
         updateStepStatus(4, 'RECUSADO', errorMsg);
-        clearPoll();
       } 
-      // Se ainda está processando (ex: status "Criado"), continua polling
+      // Se ainda está processando, mantém pendente
       else {
-        if (pollAttempts.current < 6) {
-          clearPoll();
-          pollTimeout.current = setTimeout(() => {
-            pollAttempts.current += 1;
-            consultar(true);
-          }, 3000);
-        } else {
-          // Após 6 tentativas sem resultado final, mantém pendente
-          updateStepStatus(4, 'PENDENTE');
-          clearPoll();
-        }
+        updateStepStatus(4, 'PENDENTE');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Não foi possível consultar a solicitação.';
       setError(errorMessage);
       updateStepStatus(4, 'RECUSADO', errorMessage);
-      clearPoll();
     } finally {
       setLoading(false);
     }
   }, [solicitacaoId, updateStepStatus]);
 
   useEffect(() => {
-    if (solicitacaoId) {
-      consultar();
-    } else {
-      // Quando resetAll é chamado, limpa o estado local
+    // Apenas limpa o estado quando a solicitação é resetada
+    if (!solicitacaoId) {
       setResult(null);
       setError('');
-      clearPoll();
+      setProcessoFiscal(null);
     }
-    return () => clearPoll();
-  }, [consultar, solicitacaoId]);
+  }, [solicitacaoId]);
+
+  const handleCorrigir = () => {
+    setCurrentStep(2); // Volta para StepDadosPedido
+  };
 
   const isError = result && (!result.success || isStatusError(result.data?.status) || Boolean(result.data?.erros || result.errors?.length));
 
@@ -108,7 +100,7 @@ export function StepResultado() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-success text-lg">
                   <CheckCircle2 className="w-5 h-5" />
-                  Solicitação Processada com Sucesso
+                  Processo Fiscal criado com Sucesso
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -122,8 +114,17 @@ export function StepResultado() {
                 {/* Informações Principais */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-muted-foreground">ID da Solicitação</p>
-                    <p className="text-lg font-mono">{result.data.id}</p>
+                    <p className="text-sm font-semibold text-muted-foreground">ID do Processo Fiscal</p>
+                    {loadingProcesso ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Consultando...</span>
+                      </div>
+                    ) : (
+                      <p className="text-lg font-mono">
+                        {processoFiscal?.data?.id || 'N/A'}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-semibold text-muted-foreground">Número do Pedido</p>
@@ -146,14 +147,6 @@ export function StepResultado() {
                   <h4 className="font-semibold text-sm">Beneficiário</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Código Pessoa</p>
-                      <p className="text-sm font-mono">{result.data.beneficiario.codigoPessoa}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">ID Conta Bancária</p>
-                      <p className="text-sm font-mono">{result.data.beneficiario.idContaBancaria}</p>
-                    </div>
-                    <div>
                       <p className="text-xs font-semibold text-muted-foreground">CPF</p>
                       <p className="text-sm font-mono">{result.data.beneficiario.cpfBeneficiario || 'N/A'}</p>
                     </div>
@@ -164,10 +157,6 @@ export function StepResultado() {
                 <div className="space-y-3 border-t pt-4">
                   <h4 className="font-semibold text-sm">Emissor</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Código Emissor</p>
-                      <p className="text-sm font-mono">{result.data.emissor.codigoEmissor}</p>
-                    </div>
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground">CNPJ</p>
                       <p className="text-sm font-mono">{result.data.emissor.cnpjEmissor || 'N/A'}</p>
@@ -303,11 +292,15 @@ export function StepResultado() {
 
                 {/* Botões de Ação */}
                 <div className="flex gap-2 pt-4 border-t">
+                  <Button onClick={handleCorrigir} variant="outline" className="gap-2 flex-1">
+                    <Pencil className="w-4 h-4" />
+                    Corrigir
+                  </Button>
                   <Button onClick={() => consultar()} variant="outline" className="gap-2 flex-1" disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                     Atualizar
                   </Button>
-                  <Button onClick={resetAll} className="gap-2 flex-1">
+                  <Button onClick={resetAll} variant="destructive" className="gap-2 flex-1">
                     <ArrowLeft className="w-4 h-4" />
                     Nova Solicitação
                   </Button>
@@ -324,7 +317,7 @@ export function StepResultado() {
             <p className="text-sm text-muted-foreground">ID da solicitação: {solicitacaoId}</p>
             <Button onClick={() => consultar()} className="gap-2">
               <RefreshCw className="w-4 h-4" />
-              Tentar Consultar
+              Consultar resultado
             </Button>
           </CardContent>
         </Card>

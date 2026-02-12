@@ -9,7 +9,7 @@ import type { SolicitacaoDetailResponse } from '@/types/fiscal';
 import { isStatusSuccess, isStatusError } from '@/types/fiscal';
 
 export function StepSolicitacao() {
-  const { solicitacaoId, updateStepStatus, setCurrentStep } = useFiscal();
+  const { solicitacaoId, updateStepStatus, setCurrentStep, xmlData } = useFiscal();
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<SolicitacaoDetailResponse | null>(null);
   const [error, setError] = useState('');
@@ -138,13 +138,21 @@ export function StepSolicitacao() {
                   <p className="text-sm font-mono">{result.data.beneficiario.codigoPessoa}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground">ID Conta Bancária</p>
-                  <p className="text-sm font-mono">{result.data.beneficiario.idContaBancaria}</p>
-                </div>
-                <div>
                   <p className="text-xs font-semibold text-muted-foreground">CPF</p>
                   <p className="text-sm font-mono">{result.data.beneficiario.cpfBeneficiario || 'N/A'}</p>
                 </div>
+                {xmlData?.nomeDestinatario && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Nome</p>
+                    <p className="text-sm">{xmlData.nomeDestinatario}</p>
+                  </div>
+                )}
+                {xmlData?.municipioDestinatario && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Município</p>
+                    <p className="text-sm">{xmlData.municipioDestinatario}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -164,6 +172,18 @@ export function StepSolicitacao() {
                   <p className="text-xs font-semibold text-muted-foreground">CNAE</p>
                   <p className="text-sm font-mono">{result.data.emissor.codigoCnaeEmissor || 'N/A'}</p>
                 </div>
+                {xmlData?.nomeFantasiaEmitente && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Nome Fantasia</p>
+                    <p className="text-sm">{xmlData.nomeFantasiaEmitente}</p>
+                  </div>
+                )}
+                {xmlData?.municipioEmitente && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Município</p>
+                    <p className="text-sm">{xmlData.municipioEmitente}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -207,7 +227,7 @@ export function StepSolicitacao() {
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground">Chave de Acesso</p>
-                        <p className="text-sm font-mono">{doc.chaveAcessoNf || 'N/A'}</p>
+                        <p className="text-sm font-mono break-all">{doc.chaveAcessoNf || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground">ID Externo</p>

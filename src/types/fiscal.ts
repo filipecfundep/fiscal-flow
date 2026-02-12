@@ -235,6 +235,57 @@ export interface SolicitacaoDetailResponse {
   timestamp: string;
 }
 
+// DTOs para ConsultarProcessoFiscalResponse
+export interface ProcessoBeneficiarioDto {
+  codigoPessoa: string;
+  idContaBancaria: string;
+  cpfBeneficiario: string | null;
+}
+
+export interface ProcessoDadosContabeisDto {
+  codigoProjeto: string | null;
+  subProjeto: number;
+  rubrica: string | null;
+  contaRazao: string | null;
+  centroDeCusto: string | null;
+}
+
+export interface ProcessoDocumentoFiscalDto {
+  id: number;
+  tipoDocumento: TipoDocumentoFiscal;
+  idDocumentoFiscalExterno: string;
+  chaveAcessoNf: string | null;
+  dataEmissao: string;
+}
+
+export interface ProcessoLancamentoFiscalDto {
+  id: number;
+  tipo: string;
+  descricao: string | null;
+  valor: number;
+  dataLancamento: string;
+}
+
+export interface ProcessoFiscalData {
+  id: number;
+  tipoProcesso: TipoProcessoFiscal;
+  origem: IdentificadorOrigem;
+  dataCriacao: string;
+  numeroPedido: number;
+  justificativa: string | null;
+  valorTotal: number;
+  beneficiario: ProcessoBeneficiarioDto;
+  dadosContabeis: ProcessoDadosContabeisDto;
+  documentosFiscais: ProcessoDocumentoFiscalDto[] | null;
+  lancamentos: ProcessoLancamentoFiscalDto[] | null;
+}
+
+export interface ConsultarProcessoFiscalResponse {
+  success: boolean;
+  data: ProcessoFiscalData;
+  timestamp: string;
+}
+
 export type StepStatus = 'PENDENTE' | 'APROVADO' | 'RECUSADO';
 
 export interface StepInfo {

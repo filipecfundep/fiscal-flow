@@ -13,7 +13,7 @@ import type { SolicitacaoBody, TipoProcessoFiscal, IdentificadorOrigem, TipoDocu
 import '@/components/styles/no-spinner.css';
 
 export function StepDadosPedido() {
-  const { xmlData, updateStepStatus, setCurrentStep, setSolicitacaoId, resetAll } = useFiscal();
+  const { xmlData, updateStepStatus, setCurrentStep, setSolicitacaoId, resetAll, formData, setFormData } = useFiscal();
   const [loading, setLoading] = useState(false);
   const [showDivergencia, setShowDivergencia] = useState(false);
   const [showEnviado, setShowEnviado] = useState(false);
@@ -28,22 +28,22 @@ export function StepDadosPedido() {
   const numeroPedidoMocado = Math.floor(Math.random() * 1000000);
 
   const [form, setForm] = useState({
-    origem: 1 as IdentificadorOrigem,
-    tipoProcesso: 0 as TipoProcessoFiscal,
-    valorTotal: xmlData?.valorTotal || 0,
-    codigoPessoa: idMocadaPessoa,
-    idContaBancaria: idMocadaContaBancaria,
-    cpfBeneficiario: '',
-    codigoEmissor: idMocadaEmissor,
-    cnpjEmissor: xmlData?.cnpjCpfEmitente || '',
-    codigoCnaeEmissor: '',
-    codigoProjeto: '',
-    subProjeto: 0,
-    rubrica: '',
-    contaRazao: '',
-    centroDeCusto: '',
-    numeroPedido: numeroPedidoMocado,
-    justificativa: '',
+    origem: (formData?.origem || 1) as IdentificadorOrigem,
+    tipoProcesso: (formData?.tipoProcesso || 0) as TipoProcessoFiscal,
+    valorTotal: formData?.valorTotal || xmlData?.valorTotal || 0,
+    codigoPessoa: formData?.codigoPessoa || idMocadaPessoa,
+    idContaBancaria: formData?.idContaBancaria || idMocadaContaBancaria,
+    cpfBeneficiario: formData?.cpfBeneficiario || xmlData?.cnpjCpfDestinatario || '',
+    codigoEmissor: formData?.codigoEmissor || idMocadaEmissor,
+    cnpjEmissor: formData?.cnpjEmissor || xmlData?.cnpjCpfEmitente || '',
+    codigoCnaeEmissor: formData?.codigoCnaeEmissor || '',
+    codigoProjeto: formData?.codigoProjeto || '',
+    subProjeto: formData?.subProjeto || 0,
+    rubrica: formData?.rubrica || '',
+    contaRazao: formData?.contaRazao || '',
+    centroDeCusto: formData?.centroDeCusto || '',
+    numeroPedido: formData?.numeroPedido || numeroPedidoMocado,
+    justificativa: formData?.justificativa || '',
   });
 
   const update = (field: string, value: string | number) => {
@@ -88,6 +88,9 @@ export function StepDadosPedido() {
           dataEmissao: xmlData?.dataEmissao || '',
         }],
       };
+
+      // Salva os dados do formulário no contexto antes de enviar
+      setFormData(body);
 
       const response = await enviarSolicitacao(body);
 
@@ -142,7 +145,7 @@ export function StepDadosPedido() {
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Beneficiário</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="cpfBeneficiario">CPF Beneficiário</Label>
+                <Label htmlFor="cpfBeneficiario">CPF/CNPJ Beneficiário</Label>
                 <Input id="cpfBeneficiario" value={form.cpfBeneficiario} onChange={e => update('cpfBeneficiario', e.target.value)} />
               </div>
             </div>
