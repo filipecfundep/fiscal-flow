@@ -252,7 +252,7 @@ export function StepDadosPedido() {
         <DialogContent className="text-center sm:max-w-md">
           <div className="flex flex-col items-center gap-4 py-4">
             <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            <p className="text-lg font-medium">Solicitação enviada</p>
+            <p className="text-lg font-medium">Enviando Solicitação</p>
             <p className="text-sm text-muted-foreground">Aguardando processamento...</p>
           </div>
         </DialogContent>

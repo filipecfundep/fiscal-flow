@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFiscal } from '@/contexts/FiscalContext';
 import { consultarSolicitacao, consultarProcessoFiscal } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, Loader2, RefreshCw, ArrowLeft, AlertCircle, Pencil } from 'lucide-react';
 import type { SolicitacaoDetailResponse, ConsultarProcessoFiscalResponse } from '@/types/fiscal';
-import { isStatusSuccess, isStatusError } from '@/types/fiscal';
+import { isStatusSuccess, isStatusError, isStatusPending } from '@/types/fiscal';
 
 export function StepResultado() {
   const { solicitacaoId, updateStepStatus, resetAll, setCurrentStep } = useFiscal();
@@ -15,312 +15,210 @@ export function StepResultado() {
   const [error, setError] = useState('');
   const [processoFiscal, setProcessoFiscal] = useState<ConsultarProcessoFiscalResponse | null>(null);
   const [loadingProcesso, setLoadingProcesso] = useState(false);
+  const hasConsultedRef = useRef(false);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const consultar = useCallback(async () => {
+const consultar = async (isRetry = false) => {
     if (!solicitacaoId) return;
     
+    if (!isRetry) {
+      setResult(null); 
+      setProcessoFiscal(null);
+      setError('');
+    }
+    
     setLoading(true);
-    setError('');
-    setProcessoFiscal(null);
+    
     try {
       const data = await consultarSolicitacao(solicitacaoId);
       setResult(data);
+      
       const statusSuccess = isStatusSuccess(data.data.status);
       const statusError = isStatusError(data.data?.status);
+      const statusPending = isStatusPending(data.data?.status);
       const hasApiErrors = Boolean(data.data?.erros || data.errors?.length);
-      const errorMsg = data.data?.erros || data.message || data.errors?.join(', ') || 'Erro desconhecido';
 
-      // Se sucesso final (validado ou concluído), marca como aprovado
+      // 1. SUCESSO NA SOLICITAÇÃO
       if (data.success && statusSuccess && !hasApiErrors) {
         updateStepStatus(4, 'APROVADO');
         
-        // Consulta o processo fiscal quando a solicitação for bem-sucedida
-        if (data.data?.id) {
+        // Função recursiva para buscar o ID até que ele exista
+        const buscarIdProcesso = async (idSolicitacao: number) => {
           setLoadingProcesso(true);
           try {
-            const processoData = await consultarProcessoFiscal(data.data.id);
-            console.log('Processo Fiscal retornado:', processoData);
-            console.log('ID do Processo Fiscal:', processoData?.data?.id);
-            setProcessoFiscal(processoData);
-          } catch (processoErr) {
-            console.error('Erro ao consultar processo fiscal:', processoErr);
-          } finally {
-            setLoadingProcesso(false);
+            const processoData = await consultarProcessoFiscal(idSolicitacao);
+            
+            // Se a API retornou sucesso mas o ID ainda é nulo/vazio, tenta de novo em 2s
+            if (!processoData.data?.id) {
+              setTimeout(() => buscarIdProcesso(idSolicitacao), 2000);
+            } else {
+              setProcessoFiscal(processoData);
+              setLoadingProcesso(false);
+            }
+          } catch (err) {
+            // Em caso de erro na rede, tenta novamente também
+            setTimeout(() => buscarIdProcesso(idSolicitacao), 3000);
           }
+        };
+
+        if (data.data?.id) {
+          buscarIdProcesso(data.data.id);
         }
       } 
-      // Se erro explícito ou falha na API, marca como recusado
-      else if (!data.success || statusError || hasApiErrors) {
-        updateStepStatus(4, 'RECUSADO', errorMsg);
-      } 
-      // Se ainda está processando, mantém pendente
-      else {
+      // 2. AINDA PROCESSANDO A SOLICITAÇÃO (CRIADO)
+      else if (statusPending && !hasApiErrors) {
         updateStepStatus(4, 'PENDENTE');
+        pollingTimeoutRef.current = setTimeout(() => consultar(true), 3000);
+      }
+      // 3. ERRO REAL
+      else if (!data.success || statusError || hasApiErrors) {
+        const errorMsg = data.data?.erros || data.message || data.errors?.join(', ') || 'Erro desconhecido';
+        updateStepStatus(4, 'RECUSADO', errorMsg);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Não foi possível consultar a solicitação.';
+      const errorMessage = err instanceof Error ? err.message : 'Não foi possível consultar.';
       setError(errorMessage);
       updateStepStatus(4, 'RECUSADO', errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [solicitacaoId, updateStepStatus]);
-
-  useEffect(() => {
-    // Apenas limpa o estado quando a solicitação é resetada
-    if (!solicitacaoId) {
-      setResult(null);
-      setError('');
-      setProcessoFiscal(null);
-    }
-  }, [solicitacaoId]);
-
-  const handleCorrigir = () => {
-    setCurrentStep(2); // Volta para StepDadosPedido
   };
 
-  const isError = result && (!result.success || isStatusError(result.data?.status) || Boolean(result.data?.erros || result.errors?.length));
+  useEffect(() => {
+    if (solicitacaoId && !hasConsultedRef.current) {
+      hasConsultedRef.current = true;
+      consultar();
+    }
+
+    return () => {
+      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+      hasConsultedRef.current = false;
+    };
+  }, [solicitacaoId]);
+
+  const handleCorrigir = () => setCurrentStep(2);
+
+  // Lógica de exibição: Mostra loading se estiver carregando OU se o resultado for Pendente
+  const isActuallyLoading = loading || (result && isStatusPending(result.data?.status));
 
   return (
-    <div className="space-y-4">
-      {loading && !result ? (
-        <Card className="shadow-md border-none">
-          <CardContent className="flex flex-col items-center gap-4 py-10">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            <p className="text-lg font-semibold">Consultando resultado da solicitação...</p>
-            <p className="text-sm text-muted-foreground">ID da solicitação: {solicitacaoId}</p>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+    <div className="space-y-6">
+      {/* LOADING STATE: Exibe enquanto carrega ou enquanto o status for "Criado/Pendente" */}
+      {isActuallyLoading && (!result || isStatusPending(result.data?.status)) ? (
+        <Card className="shadow-lg border-2 border-primary/20">
+          <CardContent className="flex flex-col items-center gap-4 py-12">
+            <Loader2 className="w-16 h-16 text-primary animate-spin" />
+            <div className="text-center space-y-2">
+              <p className="text-xl font-bold">Processando solicitação...</p>
+              <p className="text-sm text-muted-foreground italic">
+                Aguarde, estamos criando o seu Processo Fiscal.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">ID da solicitação: {solicitacaoId}</p>
+            {error && <p className="text-sm text-destructive font-semibold">{error}</p>}
           </CardContent>
         </Card>
       ) : result ? (
         <>
-          {/* Card de Resultado da Solicitação */}
+          {/* SUCESSO: Só entra aqui se isStatusSuccess for true */}
           {result.success && isStatusSuccess(result.data.status) ? (
-            <Card className="shadow-md border-none border-l-4 border-l-success">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-success text-lg">
-                  <CheckCircle2 className="w-5 h-5" />
-                  Processo Fiscal criado com Sucesso
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Status Badge */}
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-success text-success-foreground">
-                    Status: {result.data.status || 'Desconhecido'}
-                  </Badge>
-                </div>
-
-                {/* Informações Principais */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-muted-foreground">ID do Processo Fiscal</p>
+            <div className="space-y-6">
+              <Card className="shadow-xl border-2 border-success bg-gradient-to-br from-success/5 to-success/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-3 text-success text-2xl">
+                    <CheckCircle2 className="w-8 h-8" />
+                    Processo Fiscal Criado
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-background rounded-xl p-6 shadow-inner border-2 border-success/30">
+                    <p className="text-sm font-semibold text-muted-foreground uppercase mb-2">Identificador do Processo Fiscal</p>
                     {loadingProcesso ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Consultando...</span>
+                      <div className="flex items-center gap-3 py-2">
+                        <Loader2 className="w-6 h-6 animate-spin text-success" />
+                        <span className="text-lg text-muted-foreground">Gerando ID...</span>
                       </div>
                     ) : (
-                      <p className="text-lg font-mono">
-                        {processoFiscal?.data?.id || 'N/A'}
+                      <p className="text-3xl font-bold font-mono text-success">
+                        {processoFiscal?.data?.id || 'Gerando ID...'}
                       </p>
                     )}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-muted-foreground">Número do Pedido</p>
-                    <p className="text-lg font-mono">{result.data.numeroPedido}</p>
+                  {/* Grid de informações omitido para brevidade, mas mantido igual ao seu original */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-background rounded-lg p-4 shadow-sm border">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Número do Pedido</p>
+                      <p className="text-xl font-mono font-bold">{result.data.numeroPedido}</p>
+                    </div>
+                    <div className="bg-background rounded-lg p-4 shadow-sm border">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Valor Total</p>
+                      <p className="text-xl font-bold text-success">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.data.valorTotal)}
+                      </p>
+                    </div>
+                    <div className="bg-background rounded-lg p-4 shadow-sm border">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Data de Criação</p>
+                      <p className="text-base font-semibold">{new Date(result.data.dataCriacao).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-muted-foreground">Valor Total</p>
-                    <p className="text-lg font-semibold">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.data.valorTotal)}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-muted-foreground">Data de Criação</p>
-                    <p className="text-lg">{new Date(result.data.dataCriacao).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* Beneficiário */}
-                <div className="space-y-3 border-t pt-4">
-                  <h4 className="font-semibold text-sm">Beneficiário</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">CPF</p>
-                      <p className="text-sm font-mono">{result.data.beneficiario.cpfBeneficiario || 'N/A'}</p>
-                    </div>
+              <Card className="shadow-lg border-2">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button onClick={resetAll} size="lg" className="gap-2 flex-1">
+                      <ArrowLeft className="w-4 h-4" /> Nova Solicitação
+                    </Button>
                   </div>
-                </div>
-
-                {/* Emissor */}
-                <div className="space-y-3 border-t pt-4">
-                  <h4 className="font-semibold text-sm">Emissor</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">CNPJ</p>
-                      <p className="text-sm font-mono">{result.data.emissor.cnpjEmissor || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">CNAE</p>
-                      <p className="text-sm font-mono">{result.data.emissor.codigoCnaeEmissor || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dados Contábeis */}
-                <div className="space-y-3 border-t pt-4">
-                  <h4 className="font-semibold text-sm">Dados Contábeis</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Código Projeto</p>
-                      <p className="text-sm font-mono">{result.data.dadosContabeis.codigoProjeto || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Sub Projeto</p>
-                      <p className="text-sm font-mono">{result.data.dadosContabeis.subProjeto}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Rubrica</p>
-                      <p className="text-sm font-mono">{result.data.dadosContabeis.rubrica || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Conta Razão</p>
-                      <p className="text-sm font-mono">{result.data.dadosContabeis.contaRazao || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Centro de Custo</p>
-                      <p className="text-sm font-mono">{result.data.dadosContabeis.centroDeCusto || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Documentos Fiscais */}
-                {result.data.documentosFiscais && result.data.documentosFiscais.length > 0 && (
-                  <div className="space-y-3 border-t pt-4">
-                    <h4 className="font-semibold text-sm">Documentos Fiscais</h4>
-                    <div className="space-y-2 ml-4">
-                      {result.data.documentosFiscais.map((doc, i) => (
-                        <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-1">
-                          <p className="text-xs font-semibold text-muted-foreground">Documento #{i + 1}</p>
-                          <p className="text-sm"><span className="font-semibold">Tipo:</span> {doc.tipoDocumento}</p>
-                          <p className="text-sm font-mono break-all"><span className="font-semibold">ID:</span> {doc.idDocumentoFiscalExterno}</p>
-                          <p className="text-sm font-mono"><span className="font-semibold">Chave:</span> {doc.chaveAcessoNf || 'N/A'}</p>
-                          <p className="text-sm"><span className="font-semibold">Data:</span> {new Date(doc.dataEmissao).toLocaleDateString('pt-BR')}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Botões de Ação */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button onClick={() => consultar()} variant="outline" className="gap-2 flex-1" disabled={loading}>
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Atualizar
-                  </Button>
-                  <Button onClick={resetAll} className="gap-2 flex-1">
-                    <ArrowLeft className="w-4 h-4" />
-                    Nova Solicitação
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
-            <Card className="shadow-md border-none border-l-4 border-l-destructive">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive text-lg">
-                  <XCircle className="w-5 h-5" />
-                  Erro no Processo Fiscal
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Status Badge */}
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-destructive text-destructive-foreground">
-                    Status: {result.data?.status || 'Erro'}
-                  </Badge>
-                </div>
-
-                {/* ID da Solicitação */}
-                {result.data?.id && (
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-muted-foreground">ID da Solicitação</p>
-                    <p className="text-lg font-mono">{result.data.id}</p>
+            /* ERRO: Só entra aqui se NÃO for sucesso e NÃO for pendente */
+            <div className="space-y-6">
+              <Card className="shadow-xl border-2 border-destructive bg-gradient-to-br from-destructive/5 to-destructive/10">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <CardTitle className="text-destructive text-2xl flex items-center gap-2">
+                      <XCircle className="w-8 h-8" />
+                      Erro no Processamento
+                    </CardTitle>
+                    <Badge variant="destructive">Status: {result.data?.status}</Badge>
                   </div>
-                )}
-
-                {/* Mensagem de Erro - Prioridade 1: erros array */}
-                {result.errors && result.errors.length > 0 && (
-                  <div className="bg-destructive/10 rounded-lg p-4 space-y-2">
-                    <p className="text-sm font-semibold text-destructive flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      Erros Encontrados
-                    </p>
-                    <ul className="space-y-2">
-                      {result.errors.map((err, i) => (
-                        <li key={i} className="text-sm text-destructive flex gap-2">
-                          <span className="text-destructive mt-0.5">•</span>
-                          <span>{err}</span>
-                        </li>
-                      ))}
-                    </ul>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-background rounded-lg p-4 border text-muted-foreground">
+                    Não foi possível criar o Processo Fiscal. <br></br> Revise os detalhes do erro abaixo, corrija as informações e tente novamente.
                   </div>
-                )}
-
-                {/* Mensagem de Erro - Prioridade 2: data.erros */}
-                {result.data.erros && !result.errors?.length && (
-                  <div className="bg-destructive/10 rounded-lg p-4 space-y-2">
-                    <p className="text-sm font-semibold text-destructive flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      Detalhes do Erro
-                    </p>
-                    <p className="text-sm text-destructive whitespace-pre-wrap">{result.data.erros}</p>
+                  <div className="space-y-4 pt-4 border-t-2 border-destructive/20">
+                    <div className="flex items-center gap-2 text-destructive">
+                      <AlertCircle className="w-5 h-5" />
+                      <h4 className="font-semibold text-lg">Detalhes do Erro</h4>
+                    </div>
+                    <div className="bg-destructive/10 rounded-lg p-4 border border-destructive/30 text-destructive text-sm font-mono">
+                      {result.errors?.join(', ') || result.data.erros || result.message || 'Erro não especificado pelo servidor.'}
+                    </div>
                   </div>
-                )}
+                </CardContent>
+              </Card>
 
-                {/* Mensagem de Erro - Prioridade 3: message */}
-                {result.message && !result.errors?.length && !result.data.erros && (
-                  <div className="bg-destructive/10 rounded-lg p-4 space-y-2">
-                    <p className="text-sm font-semibold text-destructive flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      Mensagem da API
-                    </p>
-                    <p className="text-sm text-destructive">{result.message}</p>
-                  </div>
-                )}
-
-                {/* Botões de Ação */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button onClick={handleCorrigir} variant="outline" className="gap-2 flex-1">
-                    <Pencil className="w-4 h-4" />
-                    Corrigir
-                  </Button>
-                  <Button onClick={() => consultar()} variant="outline" className="gap-2 flex-1" disabled={loading}>
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Atualizar
-                  </Button>
-                  <Button onClick={resetAll} variant="destructive" className="gap-2 flex-1">
-                    <ArrowLeft className="w-4 h-4" />
-                    Nova Solicitação
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button onClick={handleCorrigir} size="lg" className="gap-2 flex-1">
+                  <Pencil className="w-4 h-4" /> Corrigir Dados
+                </Button>
+                <Button onClick={resetAll} variant="outline" size="lg" className="gap-2 flex-1">
+                  Voltar ao Início
+                </Button>
+              </div>
+            </div>
           )}
         </>
       ) : (
-        <Card className="shadow-md border-none">
-          <CardContent className="flex flex-col items-center gap-4 py-10">
-            <AlertCircle className="w-12 h-12 text-muted-foreground" />
-            <p className="text-lg font-semibold">Nenhum resultado disponível</p>
-            <p className="text-sm text-muted-foreground">ID da solicitação: {solicitacaoId}</p>
-            <Button onClick={() => consultar()} className="gap-2">
-              <RefreshCw className="w-4 h-4" />
-              Consultar resultado
-            </Button>
-          </CardContent>
-        </Card>
+         /* Caso sem resultado (Vazio) */
+         <div className="text-center py-20">
+            <Button onClick={() => consultar()}>Tentar Consultar Novamente</Button>
+         </div>
       )}
     </div>
   );

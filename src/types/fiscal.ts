@@ -146,6 +146,11 @@ export function isStatusSuccess(status: StatusSolicitacaoProcessoFiscal | string
   return numStatus === 1 || numStatus === 3; // Validado (1) ou Concluido (3)
 }
 
+export function isStatusPending(status: StatusSolicitacaoProcessoFiscal | string): boolean {
+  const numStatus = typeof status === 'string' ? stringToStatusNumber(status) : status;
+  return numStatus === 0; // Criado (0)
+}
+
 // Helper function para determinar se o status é erro
 export function isStatusError(status: StatusSolicitacaoProcessoFiscal | string): boolean {
   const numStatus = typeof status === 'string' ? stringToStatusNumber(status) : status;

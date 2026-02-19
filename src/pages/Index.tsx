@@ -9,7 +9,7 @@ import { StepResultado } from '@/components/StepResultado';
 import { FileText } from 'lucide-react';
 
 function FiscalContent() {
-  const { currentStep } = useFiscal();
+  const { currentStep, solicitacaoId } = useFiscal();
 
   return (
     <div className="min-h-screen bg-background">
@@ -33,7 +33,7 @@ function FiscalContent() {
         {currentStep === 1 && <StepXmlResults />}
         {currentStep === 2 && <StepDadosPedido />}
         {currentStep === 3 && <StepSolicitacao />}
-        {currentStep === 4 && <StepResultado />}
+        {currentStep === 4 && <StepResultado key={solicitacaoId || 'resultado'} />}
       </main>
     </div>
   );

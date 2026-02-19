@@ -134,10 +134,6 @@ export function StepSolicitacao() {
               <h4 className="font-semibold text-sm">Beneficiário</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Código Pessoa</p>
-                  <p className="text-sm font-mono">{result.data.beneficiario.codigoPessoa}</p>
-                </div>
-                <div>
                   <p className="text-xs font-semibold text-muted-foreground">CPF</p>
                   <p className="text-sm font-mono">{result.data.beneficiario.cpfBeneficiario || 'N/A'}</p>
                 </div>
@@ -160,10 +156,6 @@ export function StepSolicitacao() {
             <div className="space-y-3 border-t pt-4">
               <h4 className="font-semibold text-sm">Emissor</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Código Emissor</p>
-                  <p className="text-sm font-mono">{result.data.emissor.codigoEmissor}</p>
-                </div>
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground">CNPJ</p>
                   <p className="text-sm font-mono">{result.data.emissor.cnpjEmissor || 'N/A'}</p>
