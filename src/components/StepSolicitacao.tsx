@@ -134,7 +134,7 @@ export function StepSolicitacao() {
               <h4 className="font-semibold text-sm">Beneficiário</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground">CPF</p>
+                  <p className="text-xs font-semibold text-muted-foreground">CPF/CNPJ</p>
                   <p className="text-sm font-mono">{result.data.beneficiario.cpfBeneficiario || 'N/A'}</p>
                 </div>
                 {xmlData?.nomeDestinatario && (
@@ -157,7 +157,7 @@ export function StepSolicitacao() {
               <h4 className="font-semibold text-sm">Emissor</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-4">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground">CNPJ</p>
+                  <p className="text-xs font-semibold text-muted-foreground">CPF/CNPJ</p>
                   <p className="text-sm font-mono">{result.data.emissor.cnpjEmissor || 'N/A'}</p>
                 </div>
                 <div>

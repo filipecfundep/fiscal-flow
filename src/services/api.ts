@@ -1,7 +1,7 @@
 import type { XmlProcessResponse, SolicitacaoBody, SolicitacaoResponse, SolicitacaoDetailResponse, ConsultarProcessoFiscalResponse } from '@/types/fiscal';
 
-const API_FISCAL = "http://localhost:5100/api"
-const API_DOCS_FISCAIS = "http://localhost:5001/api"
+const API_FISCAL = "https://apipffhml.fundep.ufmg.br/fiscal/api" // "http://localhost:5100/api"
+const API_DOCS_FISCAIS = "https://apipffhml.fundep.ufmg.br/gestao-documentos-fiscais/api" // "http://localhost:5001/api"
 
 export async function processarXml(file: File): Promise<XmlProcessResponse> {
   const formData = new FormData();
